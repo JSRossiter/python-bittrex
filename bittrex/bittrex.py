@@ -53,7 +53,9 @@ API_V1_1 = 'v1.1'
 API_V2_0 = 'v2.0'
 
 BASE_URL_V1_1 = 'https://bittrex.com/api/v1.1{path}?'
+BASE_URL_V1_1_INTL = 'https://international.bittrex.com/api/v1.1{path}?'
 BASE_URL_V2_0 = 'https://bittrex.com/api/v2.0{path}?'
+BASE_URL_V2_0_INTL = 'https://international.bittrex.com/api/v2.0{path}?'
 
 PROTECTION_PUB = 'pub'  # public methods
 PROTECTION_PRV = 'prv'  # authenticated methods
@@ -84,13 +86,18 @@ class Bittrex(object):
     Used for requesting Bittrex with API key and API secret
     """
 
-    def __init__(self, api_key, api_secret, calls_per_second=1, dispatch=using_requests, api_version=API_V1_1):
+    def __init__(self, api_key, api_secret, calls_per_second=1, dispatch=using_requests, api_version=API_V1_1, international=False):
         self.api_key = str(api_key) if api_key is not None else ''
         self.api_secret = str(api_secret) if api_secret is not None else ''
         self.dispatch = dispatch
         self.call_rate = 1.0 / calls_per_second
         self.last_call = None
         self.api_version = api_version
+        self.international = international
+        if self.international:
+            self.base_url = BASE_URL_V2_0_INTL if self.api_version == API_V2_0 else BASE_URL_V1_1_INTL
+        else:
+            self.base_url = BASE_URL_V2_0 if self.api_version == API_V2_0 else BASE_URL_V1_1
 
     def decrypt(self):
         if encrypted:
@@ -134,15 +141,17 @@ class Bittrex(object):
             options = {}
 
         if self.api_version not in path_dict:
-            raise Exception('method call not available under API version {}'.format(self.api_version))
+            raise Exception(
+                'method call not available under API version {}'.format(self.api_version))
 
-        request_url = BASE_URL_V2_0 if self.api_version == API_V2_0 else BASE_URL_V1_1
+        request_url = self.base_url
         request_url = request_url.format(path=path_dict[self.api_version])
 
         nonce = str(int(time.time() * 1000))
 
         if protection != PROTECTION_PUB:
-            request_url = "{0}apikey={1}&nonce={2}&".format(request_url, self.api_key, nonce)
+            request_url = "{0}apikey={1}&nonce={2}&".format(
+                request_url, self.api_key, nonce)
 
         request_url += urlencode(options)
 
